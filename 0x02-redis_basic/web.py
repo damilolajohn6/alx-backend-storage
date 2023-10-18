@@ -1,37 +1,21 @@
 #!/usr/bin/env python3
 """
-Web file
+create a web cach
 """
-import requests
 import redis
-from functools import wraps
-
-store = redis.Redis()
-
-
-def count_url_access(method):
-    @wraps(method)
-    def wrapper(url):
-        cached_key = "cached:" + url
-        cached_data = store.get(cached_key)
-        if cached_data:
-            store.incr("count:" + url)
-            return cached_data.decode("utf-8")
-
-        html = method(url)
-
-        store.incr("count:" + url)
-        store.setex(cached_key, 10, html)
-        return html
-    return wrapper
+import requests
+rc = redis.Redis()
+count = 0
 
 
-@count_url_access
 def get_page(url: str) -> str:
-    res = requests.get(url)
-    return res.text
+    """ get a page and cach value"""
+    rc.set(f"cached:{url}", count)
+    resp = requests.get(url)
+    rc.incr(f"count:{url}")
+    rc.setex(f"cached:{url}", 10, rc.get(f"cached:{url}"))
+    return resp.text
 
 
 if __name__ == "__main__":
-    url = 'http://slowwly.robertomurray.co.uk'
-    print(get_page(url))
+    get_page('http://slowwly.robertomurray.co.uk')
